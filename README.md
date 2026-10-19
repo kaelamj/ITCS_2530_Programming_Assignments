@@ -8,4 +8,4 @@
 
 This repository contains completed programming assignments for ITCS 2530. 
 
-In my free time, I like to read, knit, and working on personal programming projects.
+In my free time, I like to read, knit, and work on personal programming projects.
