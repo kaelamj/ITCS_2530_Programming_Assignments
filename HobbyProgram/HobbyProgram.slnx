@@ -1,0 +1,7 @@
+<Solution>
+  <Configurations>
+    <Platform Name="x64" />
+    <Platform Name="x86" />
+  </Configurations>
+  <Project Path="HobbyProgram.vcxproj" Id="fbfba075-e5be-41df-955d-64017d6a2a69" />
+</Solution>
