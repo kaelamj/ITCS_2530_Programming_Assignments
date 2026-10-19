@@ -1,1 +1,11 @@
-# ITCS_2530_Progrmming_Assignments
+# ITCS 2530 - C++ Programming Assignments
+
+**Name:** Kaela Jusi
+
+**Course:** ITCS 2530
+
+**Description:** 
+
+This repository contains completed programming assignments for ITCS 2530. 
+
+In my free time, I like to read, knit, and working on personal programming projects.
