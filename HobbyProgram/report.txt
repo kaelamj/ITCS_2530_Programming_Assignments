@@ -1,0 +1,15 @@
+================================================
+Reading Progress Tracker
+================================================
+Book Information                
+------------------------------------------------
+Book Title:                     The Count of Monte Cristo
+Total Page Length:                          1200
+Current Page:                                250
+Pages Remaining:                             950
+------------------------------------------------
+Reading Progress
+20.83% completed
+Reading Time Estimate
+Average Time Per Page:                      1.50 min
+Estimated Time Remaining:                  23.75 hours
