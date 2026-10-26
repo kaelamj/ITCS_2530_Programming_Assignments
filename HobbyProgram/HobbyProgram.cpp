@@ -19,11 +19,11 @@ int main()
 	// Printing a welcome message to the console that explains the program
 
 	cout << "Welcome to the Reading Progress Tracker!" << endl;
-	cout << "Track your progress, discover your reading speed, and estimate how long it will take to finish your book!" << endl;
+	cout << "This program will track your progress, display your reading speed, and estimate the time it will take to finish your book." << endl;
 	
-	// Gathering the user data for their book information _ Title and Length (string and int)
+	// Gathering the user data for their book information _ Title and Length
 	
-	cout << "Lets gather some information about the book you're currently reading!" << endl;
+	cout << "Let's gather some information about the book you're currently reading!" << endl;
 	cout << "Enter the title of the book: " << endl;
 	getline(cin, bookTitle);
 
