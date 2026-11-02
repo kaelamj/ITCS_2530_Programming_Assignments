@@ -54,7 +54,7 @@ int main()
 
 	if (cin.fail() || totalPages <= 0) {
 		cin.clear();
-		cin.ignore(1000, '/n');
+		cin.ignore(1000, '\n');
 		cout << "Invalid input. Enter the total page length of the book: " << endl;
 		cin >> totalPages;
 	}
@@ -92,7 +92,7 @@ int main()
 
 	if (cin.fail() || minutesRead <= 0) {
 		cin.clear();
-		cin.ignore(1000, '/n');
+		cin.ignore(1000, '\n');
 		cout << "Invalid entry. Enter your reading time in minutes: " << endl;
 		cin >> minutesRead;
 	}
