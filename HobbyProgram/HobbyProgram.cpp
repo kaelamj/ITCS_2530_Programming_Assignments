@@ -7,16 +7,30 @@
 #include <fstream>
 #include <cstdlib>
 #include <climits>
+#include <cmath> // provides isfinite for checking reading-time values. -DD
 
 using namespace std;
+
+// set the largest number of reading sessions the array can hold. -DD
+const int MAX_SESSIONS = 1000;
+
+// enum to classify the book length based on total pages. -DD
+enum BookLength
+{
+	Short,
+	Medium,
+	Long
+};
 
 //------Function Prototypes------
 
 void bannerMessage();
 void changeConsoleColor();
 void displayMenu();
-void saveReport(string bookTitle, int totalPages, int endPage, int pagesRemaining, double percentageComplete, double avgTimePerPage, double timeRemaining);
-void displaySummary(string bookTitle, int totalPages, int endPage, int pagesRemaining, double percentageComplete, double avgTimePerPage, double timeRemaining);
+
+// changed to show number of reading sessions logged. -DD
+void saveReport(string bookTitle, int totalPages, int endPage, int pagesRemaining, const int startPages[], const int endPages[], const double minutesRead[], int sessionsLogged, double percentageComplete, double avgTimePerPage, double timeRemaining);
+void displaySummary(string bookTitle, int totalPages, int endPage, int pagesRemaining, const int startPages[], const int endPages[], const double minutesRead[], int sessionsLogged, double percentageComplete, double avgTimePerPage, double timeRemaining);
 
 int getValidInt(string prompt, int minValue, int maxValue);
 string getValidString(string prompt);
@@ -26,16 +40,26 @@ double calculatePercentage(int currentPage, int totalPages);
 double calculateAvgTimePerPage(double totalMinutes, int pagesRead);
 double calculateTimeRemaining(int remainingPages, double minutesPerPage);
 
+//added functions to classify the book length and return a string label for display. -DD
+BookLength classifyBookLength(int totalPages);
+string getBookLengthLabel(BookLength bookLength);
+
+// collect session values in matching array indexes and update the number stored. -DD
+void logReadingSessions(int startPages[], int endPages[], double minutesRead[], int& sessionsLogged, int capacity, int totalPages);
+
 int main() {
 
 	// Variable declarations
 
 	string bookTitle;
 	int totalPages = 0;
-	int startPage = 0;
 	int endPage = 0;
 	int sessionsLogged = 0;
-	double minutesRead = 0.0;
+
+	// store each session value in matching indexes across the three arrays. -DD
+	int startPages[MAX_SESSIONS] = {};
+	int endPages[MAX_SESSIONS] = {};
+	double minutesRead[MAX_SESSIONS] = {};
 
 	int pagesRemaining = 0;
 	int totalPagesRead = 0;
@@ -69,9 +93,7 @@ int main() {
 			// Adding a new book would overwrite previous logged sessions for right now. 
 			// Variables reset when adding a new book
 
-			startPage = 0;
 			endPage = 0;
-			minutesRead = 0.0;
 			sessionsLogged = 0;
 
 			totalPagesRead = 0;
@@ -99,55 +121,34 @@ int main() {
 			else
 			{
 				cout << "Let's begin logging your reading session!" << endl;
+				// add sessions to the array, then recalculate totals from its entries. -DD
+				logReadingSessions(startPages, endPages, minutesRead, sessionsLogged, MAX_SESSIONS, totalPages);
 
-				// using a while loop to allow for multiple entries 
-				char logSession = 'y';
-				while (logSession == 'y' || logSession == 'Y')
+				totalPagesRead = 0;
+				totalMinutesRead = 0.0;
+				// sum pages and minutes from every session stored for this book. -DD
+				for (int i = 0; i < sessionsLogged; i++)
 				{
-					// this if statement checks for previous logged entries, that way it doesn't require the user to re-enter starting page for each session. 
-					
-					if (sessionsLogged == 0)
-					{
-						startPage = getValidInt("Enter the starting page: ", 0, totalPages - 1);
-					}
-					else
-					{
-						startPage = endPage;
-						cout << "Starting page: " << startPage << endl;
-					}
+					totalPagesRead += endPages[i] - startPages[i];
+					totalMinutesRead += minutesRead[i];
+				}
 
-					endPage = getValidInt("Enter the ending page: ", startPage + 1, totalPages);
-					minutesRead = getValidDouble("Enter the total reading time in minutes: ");
+				if (sessionsLogged > 0)
+				{
+					endPage = endPages[sessionsLogged - 1];
+				}
 
-					totalPagesRead += endPage - startPage;
-					totalMinutesRead += minutesRead;
-					sessionsLogged++;
-
-					// calculations
-					pagesRemaining = totalPages - endPage;
-					percentageComplete = calculatePercentage(endPage, totalPages);
-
-					if (totalPagesRead > 0 && totalMinutesRead > 0)
-					{
-						avgTimePerPage = calculateAvgTimePerPage(totalMinutesRead, totalPagesRead);
-						timeRemaining = calculateTimeRemaining(pagesRemaining, avgTimePerPage); 
-					}
-					else
-					{
-						avgTimePerPage = 0.0;
-						timeRemaining = 0.0;
-					}
-					// if statement to prevent the user from continuing if book is complete
-					if (endPage >= totalPages)
-					{
-						cout << "Congratulations! You've finished your book!" << endl;
-						logSession = 'n';
-					}
-					else
-					{
-						cout << "Would you like to log another session? Enter 'Y' to continue." << endl;
-						cin >> logSession;
-					}
+				pagesRemaining = totalPages - endPage;
+				percentageComplete = calculatePercentage(endPage, totalPages);
+				if (totalPagesRead > 0 && totalMinutesRead > 0)
+				{
+					avgTimePerPage = calculateAvgTimePerPage(totalMinutesRead, totalPagesRead);
+					timeRemaining = calculateTimeRemaining(pagesRemaining, avgTimePerPage);
+				}
+				else
+				{
+					avgTimePerPage = 0.0;
+					timeRemaining = 0.0;
 				}
 			}
 			break;
@@ -160,7 +161,7 @@ int main() {
 			}
 			else
 			{
-				displaySummary(bookTitle, totalPages, endPage, pagesRemaining, percentageComplete, avgTimePerPage, timeRemaining);
+				displaySummary(bookTitle, totalPages, endPage, pagesRemaining, startPages, endPages, minutesRead, sessionsLogged, percentageComplete, avgTimePerPage, timeRemaining);
 			}
 			break;
 		}
@@ -172,7 +173,7 @@ int main() {
 			}
 			else
 			{
-				saveReport(bookTitle, totalPages, endPage, pagesRemaining, percentageComplete, avgTimePerPage, timeRemaining);
+				saveReport(bookTitle, totalPages, endPage, pagesRemaining, startPages, endPages, minutesRead, sessionsLogged, percentageComplete, avgTimePerPage, timeRemaining);
 			}
 
 			break;
@@ -232,7 +233,8 @@ void displayMenu()
 //      Summary Report Display Function
 //---------------------------------------------
 
-void displaySummary(string bookTitle, int totalPages, int endPage, int pagesRemaining, double percentageComplete, double avgTimePerPage, double timeRemaining)
+
+void displaySummary(string bookTitle, int totalPages, int endPage, int pagesRemaining, const int startPages[], const int endPages[], const double minutesRead[], int sessionsLogged, double percentageComplete, double avgTimePerPage, double timeRemaining)
 {
 	// Displaying the summary report
 	const int totalWidth = 48;
@@ -253,11 +255,30 @@ void displaySummary(string bookTitle, int totalPages, int endPage, int pagesRema
 		<< right << setw(rightColumn) << bookTitle << endl;
 	cout << left << setw(leftColumn) << "Total Page Length: "
 		<< right << setw(rightColumn) << totalPages << endl;
+	cout << left << setw(leftColumn) << "Book Length Category: "
+		<< right << setw(rightColumn) << getBookLengthLabel(classifyBookLength(totalPages)) << endl;
 	cout << left << setw(leftColumn) << "Current Page: "
 		<< right << setw(rightColumn) << endPage << endl;
 	cout << left << setw(leftColumn) << "Pages Remaining: "
 		<< right << setw(rightColumn) << pagesRemaining << endl;
+	cout << left << setw(leftColumn) << "Reading Sessions Logged: "
+		<< right << setw(rightColumn) << sessionsLogged << endl;
 
+	cout << setfill('-') << setw(totalWidth) << "" << endl;
+	cout << setfill(' ');
+	// changed to show number of reading sessions logged. -DD
+	cout << "Reading Sessions" << endl;
+	cout << left << setw(10) << "Session"
+		<< setw(12) << "Start Page"
+		<< setw(10) << "End Page"
+		<< right << setw(16) << "Minutes" << endl;
+	for (int i = 0; i < sessionsLogged; i++)
+	{
+		cout << left << setw(10) << i + 1
+			<< setw(12) << startPages[i]
+			<< setw(10) << endPages[i]
+			<< right << setw(16) << minutesRead[i] << endl;
+	}
 	cout << setfill('-') << setw(totalWidth) << "" << endl;
 	cout << setfill(' ');
 
@@ -307,7 +328,8 @@ void displaySummary(string bookTitle, int totalPages, int endPage, int pagesRema
 //---------------------------------------------
 
 void saveReport(string bookTitle, int totalPages, int endPage,
-	int pagesRemaining, double percentageComplete,
+	int pagesRemaining, const int startPages[], const int endPages[],
+	const double minutesRead[], int sessionsLogged, double percentageComplete,
 	double avgTimePerPage, double timeRemaining)
 {
 	const int totalWidth = 48;
@@ -332,11 +354,30 @@ void saveReport(string bookTitle, int totalPages, int endPage,
 		<< right << setw(16) << bookTitle << endl;
 	reportFile << left << setw(32) << "Total Page Length: "
 		<< right << setw(16) << totalPages << endl;
+	reportFile << left << setw(32) << "Book Length Category: "
+		<< right << setw(16) << getBookLengthLabel(classifyBookLength(totalPages)) << endl;
 	reportFile << left << setw(32) << "Current Page: "
 		<< right << setw(16) << endPage << endl;
 	reportFile << left << setw(32) << "Pages Remaining: "
 		<< right << setw(16) << pagesRemaining << endl;
+	reportFile << left << setw(32) << "Reading Sessions Logged: "
+		<< right << setw(16) << sessionsLogged << endl;
 
+	reportFile << setfill('-') << setw(totalWidth) << "" << endl;
+	reportFile << setfill(' ');
+	// changed to show number of reading sessions logged. -DD
+	reportFile << "Reading Sessions" << endl;
+	reportFile << left << setw(10) << "Session"
+		<< setw(12) << "Start Page"
+		<< setw(10) << "End Page"
+		<< right << setw(16) << "Minutes" << endl;
+	for (int i = 0; i < sessionsLogged; i++)
+	{
+		reportFile << left << setw(10) << i + 1
+			<< setw(12) << startPages[i]
+			<< setw(10) << endPages[i]
+			<< right << setw(16) << minutesRead[i] << endl;
+	}
 	reportFile << setfill('-') << setw(totalWidth) << "" << endl;
 	reportFile << setfill(' ');
 
@@ -421,6 +462,71 @@ double getValidDouble(string prompt)
 	}
 	return value;
 }
+// added a function to log reading sessions, which collects the starting page, ending page, and total reading time for each session. 
+// it also validates the input and ensures that the user cannot log more sessions than the array can hold or log sessions after finishing the book.
+// passes arrays in the function parameters to store the session data and updates the number of sessions logged. -DD
+void logReadingSessions(int startPages[], int endPages[], double minutesRead[], int& sessionsLogged, int capacity, int totalPages)
+{
+	// continue accepting sessions until the user stops, the book is done, or the array is full. -DD
+	char logSession = 'y';
+	while (logSession == 'y' || logSession == 'Y')
+	{
+		// Stop before writing past the end of the session array. -DD
+		if (sessionsLogged >= capacity)
+		{
+			cout << "The maximum number of reading sessions has been reached." << endl;
+			break;
+		}
+
+		// A completed book cannot have another reading session. -DD
+		if (sessionsLogged > 0 && endPages[sessionsLogged - 1] >= totalPages)
+		{
+			cout << "Congratulations! You've finished your book!" << endl;
+			break;
+		}
+
+		int startPage;
+		if (sessionsLogged == 0)
+		{
+			// ask for the initial page only for the first session. -DD
+			startPage = getValidInt("Enter the starting page: ", 0, totalPages - 1);
+		}
+		else
+		{
+			// continue from the ending page of the previous session. -DD
+			startPage = endPages[sessionsLogged - 1];
+			cout << "Starting page: " << startPage << endl;
+		}
+
+		// store this session's page range and reading time in the current array slot. -DD
+		startPages[sessionsLogged] = startPage;
+		endPages[sessionsLogged] = getValidInt("Enter the ending page: ", startPage + 1, totalPages);
+		minutesRead[sessionsLogged] = getValidDouble("Enter the total reading time in minutes: ");
+		// check the values at this index in the arrays and ask again if invalid. -DD
+		while (endPages[sessionsLogged] <= startPages[sessionsLogged] ||
+			endPages[sessionsLogged] > totalPages ||
+			!isfinite(minutesRead[sessionsLogged]) || minutesRead[sessionsLogged] <= 0)
+		{
+			cout << "Invalid reading session. Please enter the session again." << endl;
+			endPages[sessionsLogged] = getValidInt("Enter the ending page: ", startPage + 1, totalPages);
+			minutesRead[sessionsLogged] = getValidDouble("Enter the total reading time in minutes: ");
+		}
+
+		// count the entry only after its values pass validation. -DD
+		sessionsLogged++;
+
+		// stop prompting when this session reaches the last page. -DD
+		if (endPages[sessionsLogged - 1] >= totalPages)
+		{
+			cout << "Congratulations! You've finished your book!" << endl;
+			break;
+		}
+
+		// ask whether another session should be added to the array. -DD
+		cout << "Would you like to log another session? Enter 'Y' to continue." << endl;
+		cin >> logSession;
+	}
+}
 
 //---------------------------------------------
 //       Calculation Functions
@@ -447,4 +553,32 @@ double calculateAvgTimePerPage(double totalMinutes, int pagesRead)
 double calculateTimeRemaining(int remainingPages, double minutesPerPage)
 {
 	return (remainingPages * minutesPerPage) / 60.0;
+}
+
+BookLength classifyBookLength(int totalPages)
+{
+	if (totalPages <= 200)
+	{
+		return Short;
+	}
+	if (totalPages <= 500)
+	{
+		return Medium;
+	}
+	return Long;
+}
+
+string getBookLengthLabel(BookLength bookLength)
+{
+	switch (bookLength)
+	{
+	case Short:
+		return "Short";
+	case Medium:
+		return "Medium";
+	case Long:
+		return "Long";
+	default:
+		return "Unknown";
+	}
 }
