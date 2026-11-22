@@ -10,13 +10,28 @@
 
 using namespace std;
 
+enum BookRating
+{
+	NotRated = 0,
+	OneStar = 1,
+	TwoStars = 2,
+	ThreeStars = 3,
+	FourStars= 4,
+	FiveStars = 5
+};
 //------Function Prototypes------
 
 void bannerMessage();
 void changeConsoleColor();
 void displayMenu();
-void saveReport(string bookTitle, int totalPages, int endPage, int pagesRemaining, double percentageComplete, double avgTimePerPage, double timeRemaining);
+void saveReport(string bookTitle, int totalPages, int endPage, int pagesRemaining, double percentageComplete, double avgTimePerPage, double timeRemaining, BookRating rating);
 void displaySummary(string bookTitle, int totalPages, int endPage, int pagesRemaining, double percentageComplete, double avgTimePerPage, double timeRemaining);
+
+void displayBookShelf(const string bookTitles[], int booksAdded);
+void addBooks(string bookTitles[], int totalPages[], int currentPages[], int sessionsLogged[], int totalPagesRead[], double totalMinutesRead[],
+	BookRating bookRatings[], int& booksAdded, int& selectedBook, int maxBooks);
+void displayBookRating(BookRating rating);
+void calculateReadingProgress(int currentPages, int totalPages, int& pagesRemaining, double& percentageComplete);
 
 int getValidInt(string prompt, int minValue, int maxValue);
 string getValidString(string prompt);
@@ -30,20 +45,28 @@ int main() {
 
 	// Variable declarations
 
-	string bookTitle;
-	int totalPages = 0;
+	const int MAX_BOOKS = 5;
+	int booksAdded = 0;
+	int selectedBook = -1;
+
+	string bookTitles[MAX_BOOKS] = {};
+	int totalPages[MAX_BOOKS] = {};
+	int currentPages[MAX_BOOKS] = {};
+	int sessionsLogged[MAX_BOOKS] = {};
+	int totalPagesRead[MAX_BOOKS] = {};
+	double totalMinutesRead[MAX_BOOKS] = {};
+	BookRating bookRatings[MAX_BOOKS] = {};
+	
 	int startPage = 0;
 	int endPage = 0;
-	int sessionsLogged = 0;
 	double minutesRead = 0.0;
 
 	int pagesRemaining = 0;
-	int totalPagesRead = 0;
-	double totalMinutesRead = 0.0;
 	double percentageComplete = 0.0;
 	double avgTimePerPage = 0.0;
 	double timeRemaining = 0.0;
 
+	
 
 	changeConsoleColor();
 	bannerMessage();
@@ -56,139 +79,232 @@ int main() {
 		// Do while loop to allow for multiple selections
 		// -----------------------------------------------
 		displayMenu();
-		cin >> choice;
+		choice = getValidInt("Enter your choice: ", 1, 6);
 
 		switch (choice)
 		{
 		case 1:
 		{
-			cout << "Let's start by gathering some information about your current book." << endl;
-			bookTitle = getValidString("Enter the title of the book: ");
-			totalPages = getValidInt("Enter the total page length of the book: ", 1, INT_MAX);  // int_max is a constant that represents the max val an integer can hold.
+			// Check if bookshelf is empty
 
-			// Adding a new book would overwrite previous logged sessions for right now. 
-			// Variables reset when adding a new book
+			if (booksAdded == 0)
+			{
+				cout << "Your bookshelf is empty." << endl;
+				cout << "Let's add your first book!" << endl;
+				addBooks(bookTitles, totalPages, currentPages, sessionsLogged, totalPagesRead, totalMinutesRead, bookRatings, booksAdded, selectedBook, MAX_BOOKS);
+			}
 
-			startPage = 0;
-			endPage = 0;
-			minutesRead = 0.0;
-			sessionsLogged = 0;
+			int bookShelfChoice = 0;
+			do
+			{
+				cout << "1. View / Select a Book" << endl;
+				cout << "2. Add a book" << endl;
+				cout << "3. Main Menu" << endl;
 
-			totalPagesRead = 0;
-			totalMinutesRead = 0.0;
+				bookShelfChoice = getValidInt("Enter your choice: ", 1, 3);
+				switch (bookShelfChoice)
+				{
+				case 1:
+				{
 
-			pagesRemaining = totalPages;
-			percentageComplete = 0.0;
-			avgTimePerPage = 0.0;
-			timeRemaining = 0.0;
+					displayBookShelf(bookTitles, booksAdded);
 
+					// lets users choose the book they'd like to view. 
+					// subtract choice by 1 for array conversion.
+					int bookChoice = getValidInt("Select a book by number: ", 1, booksAdded);
+
+					selectedBook = bookChoice - 1;
+					cout << "Selected book: " << bookTitles[selectedBook] << endl;
+
+					break;
+				}
+				case 2:
+				{
+					addBooks(bookTitles, totalPages, currentPages, sessionsLogged, totalPagesRead, totalMinutesRead, bookRatings, booksAdded, selectedBook, MAX_BOOKS);
+					break;
+				}
+				case 3:
+				{
+					// return to main menu
+					break;
+				}
+				}
+			} while (bookShelfChoice != 3);
 			break;
 		}
 		case 2:
 		{
-			// ---------------------------------------------
-			// Selection statement in cases 2-4 ensure a
-			// book has been added before anything else
-			//         can be viewed or amended.
-			// ---------------------------------------------
+			// Check if a book has been added or selected
 
-			if (bookTitle.empty() || totalPages <= 0)
-			{
-				cout << "Please add a book before logging a reading session." << endl;
+			if (selectedBook < 0 || selectedBook >= booksAdded) {
+				cout << "Please add or select a book first." << endl;
+				break;
 			}
-			else
+			// Check if the book has been completed 
+			if (sessionsLogged[selectedBook] > 0 && currentPages[selectedBook] >= totalPages[selectedBook])
 			{
-				cout << "Let's begin logging your reading session!" << endl;
+				cout << "You've already completed this book!" << endl;
+				break;
+			}
 
-				// using a while loop to allow for multiple entries 
-				char logSession = 'y';
-				while (logSession == 'y' || logSession == 'Y')
+			// using a while loop to allow for multiple entries 
+			char logSession = 'y';
+			while (logSession == 'y' || logSession == 'Y')
+			{
+				// this if statement checks for previous logged entries, that way it doesn't require the user to re-enter starting page for each session. 
+
+				if (sessionsLogged[selectedBook] == 0) {
+
+					startPage = getValidInt("Enter the starting page: ", 0, totalPages[selectedBook] - 1);
+				}
+				else {
+
+					startPage = currentPages[selectedBook];
+
+					cout << "Starting page: " << startPage << endl;
+				}
+
+				endPage = getValidInt("Enter the ending page: ", startPage + 1, totalPages[selectedBook]);
+				minutesRead = getValidDouble("Enter the total reading time in minutes: ");
+
+				totalPagesRead[selectedBook] += endPage - startPage;
+				totalMinutesRead[selectedBook] += minutesRead;
+				currentPages[selectedBook] = endPage;
+				sessionsLogged[selectedBook]++;
+
+				// If statement exits loop if user already finished book
+
+				if (endPage >= totalPages[selectedBook])
 				{
-					// this if statement checks for previous logged entries, that way it doesn't require the user to re-enter starting page for each session. 
-					
-					if (sessionsLogged == 0)
-					{
-						startPage = getValidInt("Enter the starting page: ", 0, totalPages - 1);
-					}
-					else
-					{
-						startPage = endPage;
-						cout << "Starting page: " << startPage << endl;
-					}
-
-					endPage = getValidInt("Enter the ending page: ", startPage + 1, totalPages);
-					minutesRead = getValidDouble("Enter the total reading time in minutes: ");
-
-					totalPagesRead += endPage - startPage;
-					totalMinutesRead += minutesRead;
-					sessionsLogged++;
-
-					// calculations
-					pagesRemaining = totalPages - endPage;
-					percentageComplete = calculatePercentage(endPage, totalPages);
-
-					if (totalPagesRead > 0 && totalMinutesRead > 0)
-					{
-						avgTimePerPage = calculateAvgTimePerPage(totalMinutesRead, totalPagesRead);
-						timeRemaining = calculateTimeRemaining(pagesRemaining, avgTimePerPage); 
-					}
-					else
-					{
-						avgTimePerPage = 0.0;
-						timeRemaining = 0.0;
-					}
-					// if statement to prevent the user from continuing if book is complete
-					if (endPage >= totalPages)
-					{
-						cout << "Congratulations! You've finished your book!" << endl;
-						logSession = 'n';
-					}
-					else
-					{
-						cout << "Would you like to log another session? Enter 'Y' to continue." << endl;
-						cin >> logSession;
-					}
+					cout << "You've finished your book!" << endl;
+					logSession = 'n';
+				}
+				else
+				{
+					cout << "Would you like to log another session? Enter 'Y' to continue." << endl;
+					cin >> logSession;
 				}
 			}
 			break;
 		}
 		case 3:
 		{
-			if (bookTitle.empty() || totalPages <= 0)
+			// Verify that a valid book has been selected.
+			if (selectedBook < 0 || selectedBook >= booksAdded)
 			{
-				cout << "You must add a book before viewing the summary." << endl;
+				cout << "You must add or select a book before rating it." << endl;
+				break;
 			}
-			else
-			{
-				displaySummary(bookTitle, totalPages, endPage, pagesRemaining, percentageComplete, avgTimePerPage, timeRemaining);
-			}
+
+			// Display the selected book and current rating
+			cout << "Title: " << bookTitles[selectedBook] << "|";
+			displayBookRating(bookRatings[selectedBook]);
+
+			// prompt the user to enter a rating from 1 to 5.
+			int ratingChoice = getValidInt(
+				"Enter a rating from 1 to 5 stars: ",
+				1,
+				5
+			);
+
+			// Convert the integer to the BookRating enum
+			bookRatings[selectedBook] =
+				static_cast<BookRating>(ratingChoice);
+
+			cout << "Book rating saved successfully!" << endl;
+
+			displayBookRating(bookRatings[selectedBook]);
 			break;
 		}
 		case 4:
 		{
-			if (bookTitle.empty() || totalPages <= 0)
+			if (selectedBook < 0 || selectedBook >= booksAdded)
 			{
-				cout << "You must add a book before saving a report." << endl;
+				cout << "You must add or select a book before viewing the summary." << endl;
+				break;
+			}
+			// calculations moved here from case 3 because the user can now switch between books.
+			// created a function to do the calculations so they aren't repeated in cases 4 & 5.
+			calculateReadingProgress(currentPages[selectedBook], totalPages[selectedBook], pagesRemaining, percentageComplete);
+
+			// calculate the selected books avg reading time and eta
+			if (totalPagesRead[selectedBook] > 0 && totalMinutesRead[selectedBook] > 0)
+			{
+				avgTimePerPage = calculateAvgTimePerPage(totalMinutesRead[selectedBook],totalPagesRead[selectedBook]);
+
+				timeRemaining = calculateTimeRemaining(pagesRemaining,avgTimePerPage);
 			}
 			else
 			{
-				saveReport(bookTitle, totalPages, endPage, pagesRemaining, percentageComplete, avgTimePerPage, timeRemaining);
+				avgTimePerPage = 0.0;
+				timeRemaining = 0.0;
 			}
+			// function call to display summary
+			displaySummary(
+				bookTitles[selectedBook],
+				totalPages[selectedBook],
+				currentPages[selectedBook],
+				pagesRemaining,
+				percentageComplete,
+				avgTimePerPage,
+				timeRemaining
+			);
+
+			displayBookRating(bookRatings[selectedBook]);
 
 			break;
 		}
 		case 5:
+		{
+			// Verify that a valid book has been selected.
+			if (selectedBook < 0 || selectedBook >= booksAdded)
+			{
+				cout << "You must add or select a book before saving a report." << endl;
+				break;
+			}
+
+			// Calculate reading progress
+			calculateReadingProgress(currentPages[selectedBook], totalPages[selectedBook], pagesRemaining, percentageComplete);
+
+			// Calculate average reading time and estimated time remaining.
+			if (totalPagesRead[selectedBook] > 0 && totalMinutesRead[selectedBook] > 0)
+			{
+				avgTimePerPage = calculateAvgTimePerPage(totalMinutesRead[selectedBook], totalPagesRead[selectedBook]);
+
+				timeRemaining = calculateTimeRemaining(pagesRemaining, avgTimePerPage);
+			}
+			else
+			{
+				avgTimePerPage = 0.0;
+				timeRemaining = 0.0;
+			}
+
+			// Save the selected book's summary to a text file.
+			saveReport(
+				bookTitles[selectedBook],
+				totalPages[selectedBook],
+				currentPages[selectedBook],
+				pagesRemaining,
+				percentageComplete,
+				avgTimePerPage,
+				timeRemaining,
+				bookRatings[selectedBook]
+			);
+
+			break;  
+		}
+		case 6:
 		{
 			cout << "Exiting program." << endl;
 			return 0;
 		}
 		default:
 		{
-			cout << "Invalid selection. Enter a number 1-5." << endl;
+			cout << "Invalid selection. Enter a number 1-6." << endl;
 			break;
 		}
 		}
-	} while (choice != 5);
+	} while (choice != 6);
 
 	return 0;
 }
@@ -220,13 +336,108 @@ void bannerMessage()
 
 void displayMenu()
 {
-	cout << "Select a menu option below by entering the corresponding number: " << endl;
-	cout << "1. Add a book" << endl;
+	cout << "Select a menu option below: " << endl;
+	cout << "1. Bookshelf" << endl;
 	cout << "2. Log a reading session" << endl;
-	cout << "3. View reading summary" << endl;
-	cout << "4. Save a copy of your summary to report.txt" << endl;
-	cout << "5. Exit" << endl;
+	cout << "3. Rate a title." << endl;
+	cout << "4. View reading summary" << endl;
+	cout << "5. Save a copy of your summary to report.txt" << endl;
+	cout << "6. Exit" << endl;
 }
+
+//---------------------------------------------
+//      Display BookShelf Function
+//---------------------------------------------
+void displayBookShelf(const string bookTitles[], int booksAdded)
+{
+	cout << "========== Book Shelf ===========" << endl;
+
+	for (int i = 0; i < booksAdded; i++) {
+
+		cout << i + 1 << ". "
+			<< bookTitles[i] << endl;
+	}
+
+	cout << "=================================" << endl;
+}
+
+//---------------------------------------------
+//      Display Book Ratings Function
+//---------------------------------------------
+
+void displayBookRating(BookRating rating)
+{
+	switch (rating)
+	{
+	case OneStar:
+		cout << "Rating: * (1/5)" << endl;
+		break;
+
+	case TwoStars:
+		cout << "Rating: ** (2/5)" << endl;
+		break;
+
+	case ThreeStars:
+		cout << "Rating: *** (3/5)" << endl;
+		break;
+
+	case FourStars:
+		cout << "Rating: **** (4/5)" << endl;
+		break;
+
+	case FiveStars:
+		cout << "Rating: ***** (5/5)" << endl;
+		break;
+
+	case NotRated:
+		cout << "Rating: Not rated yet" << endl;
+		break;
+
+	default:
+		cout << "Rating: Unknown" << endl;
+		break;
+	}
+}
+
+//---------------------------------------------
+//     Add Books Function
+//---------------------------------------------
+
+void addBooks(string bookTitles[], int totalPages[], int currentPages[], int sessionsLogged[], int totalPagesRead[], double totalMinutesRead[],
+	BookRating bookRatings[], int& booksAdded, int& selectedBook, int maxBooks)
+{
+	// check if bookshelf is full
+	if (booksAdded >= maxBooks)
+	{
+		cout << "Your bookshelf is full." << endl;
+		return;
+	}
+
+	int remainingSlots = maxBooks - booksAdded;
+
+	// For loop to add titles to the array.
+	int numberOfBooks = getValidInt("Enter the number of books you'd like to add: ", 1, remainingSlots);
+	for (int i = 0; i < numberOfBooks; i++)
+	{
+		cout << "Book " << booksAdded + 1 << endl;
+		bookTitles[booksAdded] = getValidString("Enter the title of the book: ");
+		totalPages[booksAdded] = getValidInt("Enter the total page length of the book: ", 1, INT_MAX);
+
+		// initialize new book progress to 0 
+		currentPages[booksAdded] = 0;
+		sessionsLogged[booksAdded] = 0;
+		totalPagesRead[booksAdded] = 0;
+		totalMinutesRead[booksAdded] = 0.0;
+		bookRatings[booksAdded] = NotRated;
+
+		// select book and increment variables
+		selectedBook = booksAdded;
+		booksAdded++;
+	}
+
+	cout << "Book added successfully!" << endl;
+}
+
 
 //---------------------------------------------
 //      Summary Report Display Function
@@ -308,7 +519,7 @@ void displaySummary(string bookTitle, int totalPages, int endPage, int pagesRema
 
 void saveReport(string bookTitle, int totalPages, int endPage,
 	int pagesRemaining, double percentageComplete,
-	double avgTimePerPage, double timeRemaining)
+	double avgTimePerPage, double timeRemaining, BookRating rating)
 {
 	const int totalWidth = 48;
 	const int leftColumn = 32;
@@ -336,6 +547,20 @@ void saveReport(string bookTitle, int totalPages, int endPage,
 		<< right << setw(16) << endPage << endl;
 	reportFile << left << setw(32) << "Pages Remaining: "
 		<< right << setw(16) << pagesRemaining << endl;
+
+	// Display the book rating in the report.
+
+	if (rating == NotRated)
+	{
+		reportFile << left << setw(leftColumn) << "Book Rating: "
+			<< right << setw(rightColumn) << "Not rated yet" << endl;
+	}
+	else
+	{
+		reportFile << left << setw(leftColumn) << "Book Rating: "
+			<< right << setw(rightColumn) << static_cast<int>(rating)
+			<< "/5" << endl;
+	}
 
 	reportFile << setfill('-') << setw(totalWidth) << "" << endl;
 	reportFile << setfill(' ');
@@ -447,4 +672,9 @@ double calculateAvgTimePerPage(double totalMinutes, int pagesRead)
 double calculateTimeRemaining(int remainingPages, double minutesPerPage)
 {
 	return (remainingPages * minutesPerPage) / 60.0;
+}
+void calculateReadingProgress(int currentPages, int totalPages, int& pagesRemaining, double& percentageComplete)
+{
+	pagesRemaining = totalPages - currentPages;
+	percentageComplete = calculatePercentage(currentPages, totalPages);
 }
